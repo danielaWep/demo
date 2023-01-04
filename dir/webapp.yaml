@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webapp-deployment
+  labels:
+    app: webapp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webapp
+  template:
+    metadata:
+      labels:
+        app: webapp
+    spec:
+      containers:
+      - name: webapp
+        image: nanajanashia/k8s-demo-app:v1.0
+        ports:
+        - containerPort: 3000
+        env:
+          - name: USER_NAME # it was defined like this in nana's image
+            valueFrom: #because we want to use the value in the secret file
+              secretKeyRef:
+                name: mongo-secret #this is the name of the secret under the attribute "name" in secret file
+                key: username # name of the key as define in the secret file
+          - name: USER_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: mongo-secret
+                key: password
+          - name: DB_URL #reference for the database
+            valueFrom:
+              configMapKeyRef:
+                name: mongo.config
+                key: mongo-url #name of the key as stated is the config file
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-service 
+spec:
+  type: NodePort #input to make the webapp accessible outside the container/on the browser
+  selector:
+    app.kubernetes.io/name: webapp #must match the selector name in deployment: connects service and pod
+  ports:
+    - protocol: TCP
+      port: 3000  #can be any port we decide
+      targetPort: 3000 #must match containerPort, this is where the service should forward the request to
+      nodePort: 30000 #must always be between the range 30000 to 32767
